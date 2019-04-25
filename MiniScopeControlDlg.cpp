@@ -822,7 +822,6 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			}
 		}
 	}
-	self->AddListText(L"loop finished");
 	return 0;
 }
 UINT CMiniScopeControlDlg::behavCapture(LPVOID pParam )
@@ -892,6 +891,8 @@ UINT CMiniScopeControlDlg::camWrite(LPVOID pParam )
 		behavOutVid.open(tempString,CV_FOURCC('D', 'I', 'B', ' '),20,cv::Size(self->behavROI.width,self->behavROI.height),true);
 	}
 
+	self->UpdateLEDs(0, self->mValueExcitation);
+
 	while(1) {
 		msSingleLock.Lock();  // Attempt to lock the shared resource
 		if (msSingleLock.IsLocked()) { // Resource has been locked
@@ -960,6 +961,7 @@ UINT CMiniScopeControlDlg::camWrite(LPVOID pParam )
 			break;
 		}
 	}
+	self->UpdateLEDs(0, 0);
 
 	self->AddListText(L"Recording Files Closed");
 	return 0;
