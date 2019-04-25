@@ -688,6 +688,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 	currentTime = self->startOfRecord;
 
 	cv::Mat frame; //moved from inside else loop by Daniel 3_27_2015
+	cv::Mat temp_frame; //added for toggling LED
 
 	// Added by Daniel 6_22_2015 to try and stop software from crashing on camera disconnect
 	bool status;
@@ -701,6 +702,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
     compression_params.push_back(0);
 	cv::Mat droppedFrameImage = cv::imread("droppedFrameImage.bmp", CV_LOAD_IMAGE_COLOR);
 	unsigned char temp;
+	bool isOn = false;
 
 	//cv::Mat trash;
 	//self->msCam.read(trash);
@@ -726,20 +728,27 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			}
 		}
 		//-------------------------------
+		//toggling of LED/recording at 1Hz
+		if (self->mElapsedTime % 2 == 0) {
+			if (!isOn) {
+				self->UpdateLEDs(0, self->mValueExcitation);
+				isOn = true;
+			}
+		}
+		else {
+			if (isOn) {
+				self->UpdateLEDs(0, 0);
+				isOn = false;
+			}
+		}
+		//-------------------------------
 		status = self->msCam.grab();
 		if (status == false) {
 			self->record = false;
 			self->AddListText(L"msCam frame grab error!");
 			continue;
 		}
-		previousTime = currentTime;
-		QueryPerformanceCounter(&currentTime);
-		self->mMSCurrentFPS = 1/(((double)currentTime.QuadPart - previousTime.QuadPart)/self->Frequency.QuadPart);
-		
-		self->msCapFrameTime[self->msWritePos%BUFFERLENGTH] = 1000*((double)currentTime.QuadPart - self->startOfRecord.QuadPart)/self->Frequency.QuadPart;
-		
-
-		status = self->msCam.retrieve(self->msFrame[self->msWritePos%BUFFERLENGTH]);
+		status = self->msCam.retrieve(temp_frame);
 		if (status == false) {
 			//self->record = false;
 			self->mMSDroppedFrames++; //Added frame drop tracker Daniel 11_10_2015
@@ -754,6 +763,13 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			continue;
 		}
 		else {//Added else Daniel 11_10_2015
+			previousTime = currentTime;
+			QueryPerformanceCounter(&currentTime);
+			self->mMSCurrentFPS = 1 / (((double)currentTime.QuadPart - previousTime.QuadPart) / self->Frequency.QuadPart);
+			if (isOn) {
+				self->msCapFrameTime[self->msWritePos%BUFFERLENGTH] = 1000 * ((double)currentTime.QuadPart - self->startOfRecord.QuadPart) / self->Frequency.QuadPart;
+				self->msFrame[self->msWritePos%BUFFERLENGTH] = temp_frame;
+			}
 			if (self->mMSDroppedFrames > 0) {
 				self->AddListText(L"sending settings");
 				self->msCam.set(CV_CAP_PROP_BRIGHTNESS, self->mScopeExposure);
@@ -767,7 +783,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			
 				CT2CA pszConvertedAnsiString = self->folderLocation + "\\" + self->mMouseName + "_" + self->mNote + "_" + self->currentTime + ".png";
 				tempString = pszConvertedAnsiString;
-				cv::imwrite(tempString,self->msFrame[self->msWritePos%BUFFERLENGTH],compression_params);
+				cv::imwrite(tempString,temp_frame,compression_params);
 				self->getScreenShot = false;
 				str.Format(L"Image saved in %s",self->folderLocation);
 				self->AddListText(str);
@@ -777,8 +793,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			//cv::cvtColor(self->msFrame[self->msWritePos%BUFFERLENGTH],frame,CV_YUV2GRAY_YUYV);//added to correct green color stream
 
 			if (self->mMSColorCheck == FALSE) {
-				cv::cvtColor(self->msFrame[self->msWritePos%BUFFERLENGTH],frame,CV_BGR2GRAY);//added to correct green color stream
-
+				cv::cvtColor(temp_frame, frame, CV_BGR2GRAY);//added to correct green color stream
 				cv::minMaxLoc(frame,&self->mMinFluor,&self->mMaxFluor);
 				frame.convertTo(frame, CV_8U, 255.0/(self->mMaxFluorDisplay - self->mMinFluorDisplay), -self->mMinFluorDisplay * 255.0/(self->mMaxFluorDisplay - self->mMinFluorDisplay));
 
@@ -798,7 +813,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 				//cv::Mat frame;
 			
 				//cv::Mat channel[3];
-				cv::cvtColor(self->msFrame[self->msWritePos%BUFFERLENGTH],frame,CV_BGR2GRAY);
+				cv::cvtColor(temp_frame, frame, CV_BGR2GRAY);
 				//cv::cvtColor(self->msFrame[self->msWritePos%BUFFERLENGTH],frame,CV_YUV2GRAY_YUY2);//added to correct green color stream
 				cv::cvtColor(frame,frame,CV_BayerRG2BGR);
 				if (self->mRed == TRUE || self->mGreen == TRUE) {
@@ -816,7 +831,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 				cv::imshow("msCam", frame);
 			}
 	
-			if (self->record == true) {
+			if ((self->record == true) && isOn) {
 				msSingleLock.Lock();  // Attempt to lock the shared resource
 				if (msSingleLock.IsLocked()) { // Resource has been locked
 					self->msWritePos++;
