@@ -751,7 +751,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			continue;
 		}
 		else {//Added else Daniel 11_10_2015
-			if (self->mMSDroppedFrames > 0 || self->mMSCurrentFPS < self->mMSFPS / 2.0) {
+			if (self->mMSDroppedFrames > 0) {
 				self->AddListText(L"sending settings");
 				self->msCam.set(CV_CAP_PROP_BRIGHTNESS, self->mScopeExposure);
 				self->msCam.set(CV_CAP_PROP_GAIN, self->mScopeGain);
@@ -822,6 +822,7 @@ UINT CMiniScopeControlDlg::msCapture(LPVOID pParam )
 			}
 		}
 	}
+	self->AddListText(L"loop finished");
 	return 0;
 }
 UINT CMiniScopeControlDlg::behavCapture(LPVOID pParam )
