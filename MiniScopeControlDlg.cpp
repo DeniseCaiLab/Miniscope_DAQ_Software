@@ -534,7 +534,7 @@ void CMiniScopeControlDlg::OnBnClickedBehaviorconnect()
 {
 	
 	UpdateData(TRUE);
-	GetDlgItem(IDC_RECORD)->EnableWindow(FALSE);
+	//GetDlgItem(IDC_RECORD)->EnableWindow(FALSE);
 	cv::namedWindow("behavCam");
 	cv::moveWindow("behavCam", 1000,400);
 	behavCam.open(mBehaviorCamID);
@@ -558,6 +558,9 @@ void CMiniScopeControlDlg::OnBnClickedBehaviorconnect()
 	GetDlgItem(IDC_BEHAVPROP)->EnableWindow(TRUE);
 	behavCam.grab();
 	behavCam.retrieve(behavFrame[behavWritePos%BUFFERLENGTH]);
+	cv::Size sz = behavFrame[behavWritePos%BUFFERLENGTH].size();
+	behavROI = cv::Rect(cv::Point(0, 0), sz);
+
 	//cv::imshow("behavCam", initialBehavFrame);
 	cv::setMouseCallback("behavCam",mouseClick,this);
 	AddListText(L"Select Behavior Cam ROI");
@@ -845,10 +848,7 @@ UINT CMiniScopeControlDlg::behavCapture(LPVOID pParam )
 			rectangle(self->behavFrame[self->behavWritePos%BUFFERLENGTH], self->pt1, self->pt2, CV_RGB(255, 0, 0), 3, 8, 0);
 		}
 
-		if (self->behavGotROI)
-			cv::imshow("behavCam", self->behavFrame[self->behavWritePos%BUFFERLENGTH](self->behavROI));
-		else
-			cv::imshow("behavCam", self->behavFrame[self->behavWritePos%BUFFERLENGTH]);
+		cv::imshow("behavCam", self->behavFrame[self->behavWritePos%BUFFERLENGTH](self->behavROI));
 
 		if (self->record == true) {
 			behavSingleLock.Lock();  // Attempt to lock the shared resource
